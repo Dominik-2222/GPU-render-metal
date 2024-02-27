@@ -121,38 +121,34 @@ half4 gauss2y(texture2d<half> colorMap,  sampler colorSampler,ColorInOut in){
         col+= sample.rgba *exponent;
         
     }
-    
     col/=weightsum;
     return col;
-    
-    
 }
-
 
 
 
 fragment float4 fragmentShader(ColorInOut in [[stage_in]],
                                constant Uniforms & uniforms [[ buffer(BufferIndexUniforms) ]],
-                               texture2d<half> colorMap     [[ texture(TextureIndexColor) ]])
+                               texture2d<half> colorMap     [[ texture(TextureIndexColor) ]],
+                               constant float &testValue[[buffer(3)]])
 {
+  
     constexpr sampler colorSampler(mip_filter::linear,
                                    mag_filter::linear,
                                    min_filter::linear);
 
     
-    half4 colorSample = colorMap.sample(colorSampler, in.texCoord.xy);
+    half4 colorSample = colorMap.sample(colorSampler, in.texCoord.xy) * testValue;
 
     //colorSample=grayscale(colorSample);//filtr szarosci
     //colorSample=negative(colorSample);//negatyw
    // colorSample=gauss( colorMap,   colorSampler, in);//gauss
 
-    if(BufferIndexUniforms%2==0){
+  
         colorSample=gauss2x( colorMap,   colorSampler, in);//gauss 2 przebiegowy
-    }
-    if(BufferIndexUniforms%2==1){
+ 
         colorSample=gauss2y( colorMap,   colorSampler, in);//gauss 2 przebiegowy
 
-    }
    
     
     

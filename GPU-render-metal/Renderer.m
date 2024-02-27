@@ -221,8 +221,17 @@ static const size_t kAlignedUniformsSize = (sizeof(Uniforms) & ~0xFF) + 0x100;
 
     /// Delay getting the currentRenderPassDescriptor until we absolutely need it to avoid
     ///   holding onto the drawable and blocking the display pipeline any longer than necessary
-    MTLRenderPassDescriptor* renderPassDescriptor = view.currentRenderPassDescriptor;
-
+   MTLRenderPassDescriptor* renderPassDescriptor = view.currentRenderPassDescriptor;
+//
+//    
+//    MTLRenderPassDescriptor* rendPas2 = view.currentRenderPassDescriptor;
+//    
+//    MTLTextureDescriptor *texDesc;
+//    id <MTLTexture> tmpTex = [view.device newTextureWithDescriptor:texDesc];
+//    rendPas2.colorAttachments[0].texture = tmpTex;
+    
+    
+    
     if(renderPassDescriptor != nil) {
 
         /// Final pass rendering code here
@@ -260,6 +269,9 @@ static const size_t kAlignedUniformsSize = (sizeof(Uniforms) & ~0xFF) + 0x100;
         [renderEncoder setFragmentTexture:_colorMap
                                   atIndex:TextureIndexColor];
 
+        float testFloat = 0.5;
+        [renderEncoder setFragmentBytes:&testFloat length:sizeof(float) atIndex:3];
+        
         for(MTKSubmesh *submesh in _mesh.submeshes)
         {
             [renderEncoder drawIndexedPrimitives:submesh.primitiveType

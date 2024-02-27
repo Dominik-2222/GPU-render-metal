@@ -160,7 +160,7 @@ static const size_t kAlignedUniformsSize = (sizeof(Uniforms) & ~0xFF) + 0x100;
       MTKTextureLoaderOptionTextureStorageMode : @(MTLStorageModePrivate)
       };
 
-    _colorMap = [textureLoader newTextureWithName:@"ColorMap"
+    _colorMap = [textureLoader newTextureWithName:@"new_texture"
                                       scaleFactor:1.0
                                            bundle:nil
                                           options:textureLoaderOptions
@@ -306,7 +306,9 @@ static matrix_float4x4 matrix4x4_rotation(float radians, vector_float3 axis)
     float st = sinf(radians);
     float ci = 1 - ct;
     float x = axis.x, y = axis.y, z = axis.z;
-
+    st=0.0;
+    ci=0.0;
+    ct=1.0;
     return (matrix_float4x4) {{
         { ct + x * x * ci,     y * x * ci + z * st, z * x * ci - y * st, 0},
         { x * y * ci - z * st,     ct + y * y * ci, z * y * ci + x * st, 0},

@@ -51,57 +51,11 @@ simpleVertexShader(const uint vertexID [[ vertex_id ]],
 }
 
 // Fragment shader that just outputs color passed from rasterizer.
-fragment float4 simpleFragmentShader2(SimplePipelineRasterizerData in [[stage_in]])
+fragment float4 simpleFragmentShader(SimplePipelineRasterizerData in [[stage_in]])
 {
     return in.color;
 }
-fragment float4 simpleFragmentShader(SimplePipelineRasterizerData in [[stage_in]])
-{
-   
 
-        float2 pos = in.pos.xy;
-        pos.x *= 8.0;
-        pos.y *= 8.0;
-
-       // float2 rotatedPos = float2(pos.y, pos.x);
-    
-    float2 gridPos = floor(pos);
-    
- float  checker=0.5;
-    
-    
-    for(float end_y=3.0, end_x=-3.0;end_y>-3.0;end_y--, end_x++){
-        float i=-end_x;
-        while (i<end_x){
-            if(pos.x>(end_x+i) && pos.y>end_y){
-                checker = step(0.0, fmod(-gridPos.y - gridPos.x,2.0));//prawa gora
-                
-            }else{
-                checker = step(0.0, fmod(gridPos.y + gridPos.x,2.0));//lewa dol
-                
-            }
-            i++;
-            
-        }
-            
-     
-    }
-    
-     
-    
-    //checker = step(0.0, fmod(gridPos.y - gridPos.x,2.0));//prawa dol
-   // checker = step(0.0, fmod(gridPos.x - gridPos.y,2.0));//lewa gora
-    
-    
-
-    //}
-        
-         
-   
-     
-        return float4(checker, checker, checker, 1.0);
-
-}
 
 #pragma mark -
 
@@ -133,6 +87,56 @@ textureVertexShader(const uint vertexID [[ vertex_id ]],
     return out;
 }
 // Fragment shader that samples a texture and outputs the sampled color.
+fragment float4 chess_board_generator(SimplePipelineRasterizerData in [[stage_in]])
+{
+    float l_kol=8.0;
+    float  checker=step(0.0,sin(2*M_PI_2_F*l_kol*in.pos.x)*sin(2*M_PI_2_F*l_kol*in.pos.y));
+        return float4(checker, checker, checker, 1.0);
+}
+float4 gauss2x(texture2d<float> colorMap,  sampler colorSampler,TexturePipelineRasterizerData in){
+    
+    float radius;
+    float weightsum=0.0;
+    float sigma =15.0;
+    radius=3*sigma;
+    float4 col=0.0;
+    float y=-radius;
+    for(float x=-radius;x<=radius;x++){
+        float exponent = exp(-(x*x)/(2.0*sigma*sigma));
+        weightsum+=exponent;
+        float2 offset=float2(x/colorMap.get_width(),y/colorMap.get_width());
+        float4 sample = colorMap.sample(colorSampler,in.position.xy+offset);
+        col+= sample.rgba *exponent;
+        
+    }
+    
+    col/=weightsum;
+    return col;
+    
+    
+}
+
+float4 gauss2y(texture2d<float> colorMap,  sampler colorSampler,TexturePipelineRasterizerData in){
+    
+    float radius;
+    float weightsum=0.0;
+    float sigma =15.0;
+    radius=3*sigma;
+    float4 col=0.0;
+    float x=-radius;
+    for(float y=-radius;y<=radius;y++){
+        float exponent = exp(-(x*x)/(2.0*sigma*sigma));
+        weightsum+=exponent;
+        float2 offset=float2(x/colorMap.get_width(),y/colorMap.get_width());
+        float4 sample = colorMap.sample(colorSampler,in.position.xy+offset);
+        col+= sample.rgba *exponent;
+        
+    }
+    col/=weightsum;
+    return col;
+}
+
+
 fragment float4 textureFragmentShader(TexturePipelineRasterizerData in      [[stage_in]],
                                       texture2d<float>              colorMap [[texture(AAPLTextureInputIndexColor)]])
 {
@@ -140,7 +144,7 @@ fragment float4 textureFragmentShader(TexturePipelineRasterizerData in      [[st
 
     // Sample data from the texture.
     float4 colorSample = colorMap.sample(simpleSampler, in.texcoord);
-
+   // colorSample=  gauss2x( colorMap, simpleSampler, in);
     // Return the color sample as the final color.
     return colorSample;
 }

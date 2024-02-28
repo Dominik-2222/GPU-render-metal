@@ -105,17 +105,9 @@ static const NSUInteger kMaxBuffersInFlight = 3;
         pipelineStateDescriptor.label = @"Offscreen Render Pipeline";
         pipelineStateDescriptor.rasterSampleCount = 1;
         pipelineStateDescriptor.vertexFunction =  [defaultLibrary newFunctionWithName:@"simpleVertexShader"];
-        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"simpleFragmentShader"];
+        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"chess_board_generator"];
         pipelineStateDescriptor.colorAttachments[0].pixelFormat = _renderTargetTexture.pixelFormat;
-        pipelineStateDescriptor.colorAttachments[0].blendingEnabled=YES;
-        pipelineStateDescriptor.colorAttachments[0].rgbBlendOperation           = MTLBlendOperationAdd;
-        pipelineStateDescriptor.colorAttachments[0].alphaBlendOperation         = MTLBlendOperationAdd;
 
-        pipelineStateDescriptor.colorAttachments[0].sourceRGBBlendFactor        = MTLBlendFactorOne;
-        pipelineStateDescriptor.colorAttachments[0].sourceAlphaBlendFactor      = MTLBlendFactorOne;
-
-        pipelineStateDescriptor.colorAttachments[0].destinationRGBBlendFactor   = MTLBlendFactorOneMinusSourceAlpha;
-        pipelineStateDescriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         
         _renderToTextureRenderPipeline = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
         NSAssert(_renderToTextureRenderPipeline, @"Failed to create pipeline state to render to texture: %@", error);
@@ -202,13 +194,13 @@ static const NSUInteger kMaxBuffersInFlight = 3;
         static const AAPLTextureVertex quadVertices[] =
         {
             // Positions     , Texture coordinates
-            { {  0.5,  -0.5 },  { 1.0, 1.0 } },//trojkat arena 2
-            { { -0.5,  -0.5 },  { 0.0, 1.0 } },
-            { { -0.5,   0.5 },  { 0.0, 0.0 } },
+            { {  1,  -1 },  { 1.0, 1.0 } },//trojkat arena 2
+            { { -1,  -1 },  { 0.0, 1.0 } },
+            { { -1,   1 },  { 0.0, 0.0 } },
 
-            { {  0.5,  -0.5 },  { 1.0, 1.0 } },//trojkat arena 1
-            { { -0.5,   0.5 },  { 0.0, 0.0 } },
-            { {  0.5,   0.5 },  { 1.0, 0.0 } },
+            { {  1,  -1 },  { 1.0, 1.0 } },//trojkat arena 1
+            { { -1,   1 },  { 0.0, 0.0 } },
+            { {  1,   1 },  { 1.0, 0.0 } },
         };
         id<MTLRenderCommandEncoder> renderEncoder =
             [commandBuffer renderCommandEncoderWithDescriptor:drawableRenderPassDescriptor];

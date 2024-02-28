@@ -137,14 +137,26 @@ float4 gauss2y(texture2d<float> colorMap,  sampler colorSampler,TexturePipelineR
 }
 
 
-fragment float4 textureFragmentShader(TexturePipelineRasterizerData in      [[stage_in]],
+fragment float4 textureFragmentShader2(TexturePipelineRasterizerData in      [[stage_in]],
                                       texture2d<float>              colorMap [[texture(AAPLTextureInputIndexColor)]])
 {
     sampler simpleSampler;
 
     // Sample data from the texture.
     float4 colorSample = colorMap.sample(simpleSampler, in.texcoord);
-   // colorSample=  gauss2x( colorMap, simpleSampler, in);
+ // colorSample=  gauss2x( colorMap, simpleSampler, in);
     // Return the color sample as the final color.
     return colorSample;
 }
+fragment float4 gaussx(TexturePipelineRasterizerData in      [[stage_in]],
+                                      texture2d<float>              colorMap [[texture(AAPLTextureInputIndexColor)]])
+{
+    sampler simpleSampler;
+
+    // Sample data from the texture.
+    float4 colorSample = colorMap.sample(simpleSampler, in.texcoord);
+    colorSample=  gauss2x( colorMap, simpleSampler, in);
+    // Return the color sample as the final color.
+    return colorSample;
+}
+

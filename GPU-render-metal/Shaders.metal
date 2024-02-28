@@ -12,149 +12,104 @@
 
 // Including header shared between this Metal shader code and Swift/C code executing Metal API commands
 #import "ShaderTypes.h"
+/*
+See LICENSE folder for this sample’s licensing information.
+
+Abstract:
+Metal vertex and fragment shaders.
+*/
 
 using namespace metal;
 
-typedef struct
-{
-    float3 position [[attribute(VertexAttributePosition)]];
-    float2 texCoord [[attribute(VertexAttributeTexcoord)]];
-} Vertex;
 
-typedef struct
+
+#pragma mark -
+
+#pragma mark - Shaders for simple pipeline used to render triangle to renderable texture
+
+// Vertex shader outputs and fragment shader inputs for simple pipeline
+struct SimplePipelineRasterizerData
 {
     float4 position [[position]];
-    float2 texCoord;
-} ColorInOut;
+    float4 color;
+    float2 pos;
+};
 
-//funkcje--------------filtry
-
-half4 grayscale(half4 colorSmaple){
-
-   half gray2 = colorSmaple.r *  0.21 + colorSmaple.g *  0.71 + colorSmaple.b *  0.07;
-    colorSmaple.r=gray2;
-    colorSmaple.g=gray2;
-    colorSmaple.b=gray2;
-   
-    return colorSmaple;
-   
-}
-half4 negative(half4 colorSmaple2){
-
-    colorSmaple2.r=(1-colorSmaple2.r);
-    colorSmaple2.g=(1-colorSmaple2.g);
-    colorSmaple2.b=(1-colorSmaple2.b);
-   
-    return colorSmaple2;
-   
-}
-
-vertex ColorInOut vertexShader(Vertex in [[stage_in]],
-                               constant Uniforms & uniforms [[ buffer(BufferIndexUniforms) ]])
+// Vertex shader which passes position and color through to rasterizer.
+vertex SimplePipelineRasterizerData
+simpleVertexShader(const uint vertexID [[ vertex_id ]],
+                   const device AAPLSimpleVertex *vertices [[ buffer(AAPLVertexInputIndexVertices) ]])
 {
-    ColorInOut out;
+    SimplePipelineRasterizerData out;
 
-    float4 position = float4(in.position, 1.0);
-    out.position = uniforms.projectionMatrix * uniforms.modelViewMatrix * position;
-    out.texCoord = in.texCoord;
+    out.position = vector_float4(0.0, 0.0, 0.0, 1.0);
+    out.position.xy = vertices[vertexID].position.xy;
 
+    out.color = vertices[vertexID].color;
+    out.pos=vertices[vertexID].position.xy;
     return out;
 }
 
-
-half4 gauss(texture2d<half> colorMap,  sampler colorSampler,ColorInOut in){
-    
-    float radius;
-    float weightsum=0.0;
-    float sigma =15.0;
-    radius=3*sigma;
-    half4 col=0.0;
-    for(float y=-radius;y<=radius;y++){
-        for(float x=-radius;x<=radius;x++){
-            float exponent = exp(-(x*x+y*y)/(2.0*sigma*sigma));
-            weightsum+=exponent;
-            float2 offset=float2(x/colorMap.get_width(),y/colorMap.get_height());
-            half4 sample = colorMap.sample(colorSampler,in.texCoord.xy+offset);
-            col+= sample.rgba *exponent;
-            
-        }
-    }
-    col/=weightsum;
-    return col;
-}
-half4 gauss2x(texture2d<half> colorMap,  sampler colorSampler,ColorInOut in){
-    
-    float radius;
-    float weightsum=0.0;
-    float sigma =15.0;
-    radius=3*sigma;
-    half4 col=0.0;
-    float y=-radius;
-    for(float x=-radius;x<=radius;x++){
-        float exponent = exp(-(x*x)/(2.0*sigma*sigma));
-        weightsum+=exponent;
-        float2 offset=float2(x/colorMap.get_width(),y/colorMap.get_width());
-        half4 sample = colorMap.sample(colorSampler,in.texCoord.xy+offset);
-        col+= sample.rgba *exponent;
-        
-    }
-    
-    col/=weightsum;
-    return col;
-    
-    
-}
-
-half4 gauss2y(texture2d<half> colorMap,  sampler colorSampler,ColorInOut in){
-    
-    float radius;
-    float weightsum=0.0;
-    float sigma =15.0;
-    radius=3*sigma;
-    half4 col=0.0;
-    float x=-radius;
-    for(float y=-radius;y<=radius;y++){
-        float exponent = exp(-(x*x)/(2.0*sigma*sigma));
-        weightsum+=exponent;
-        float2 offset=float2(x/colorMap.get_width(),y/colorMap.get_width());
-        half4 sample = colorMap.sample(colorSampler,in.texCoord.xy+offset);
-        col+= sample.rgba *exponent;
-        
-    }
-    col/=weightsum;
-    return col;
-}
-
-
-
-fragment float4 fragmentShader(ColorInOut in [[stage_in]],
-                               constant Uniforms & uniforms [[ buffer(BufferIndexUniforms) ]],
-                               texture2d<half> colorMap     [[ texture(TextureIndexColor) ]],
-                               constant float &testValue[[buffer(3)]])
+// Fragment shader that just outputs color passed from rasterizer.
+fragment float4 simpleFragmentShader2(SimplePipelineRasterizerData in [[stage_in]])
 {
-  
-    constexpr sampler colorSampler(mip_filter::linear,
-                                   mag_filter::linear,
-                                   min_filter::linear);
-
-    
-    half4 colorSample = colorMap.sample(colorSampler, in.texCoord.xy) * testValue;
-
-    //colorSample=grayscale(colorSample);//filtr szarosci
-    //colorSample=negative(colorSample);//negatyw
-   // colorSample=gauss( colorMap,   colorSampler, in);//gauss
-
-  
-        colorSample=gauss2x( colorMap,   colorSampler, in);//gauss 2 przebiegowy
- 
-        colorSample=gauss2y( colorMap,   colorSampler, in);//gauss 2 przebiegowy
-
+    return in.color;
+}
+fragment float4 simpleFragmentShader(SimplePipelineRasterizerData in [[stage_in]])
+{
    
+
+        float2 pos = in.pos.xy;
+        pos.x *= 8.0;
+        pos.y *= 8.0;
+
+       // float2 rotatedPos = float2(pos.y, pos.x);
+    float2 gridPos = floor(pos);
     
-    
-    
-    
-    return float4(colorSample);
+        float checker = step(0.5, fmod(gridPos.x + gridPos.y,2.0));
+
+        return float4(checker, checker, checker, 1.0);
+
 }
 
+#pragma mark -
 
+#pragma mark Shaders for pipeline used texture from renderable texture when rendering to the drawable.
+
+// Vertex shader outputs and fragment shader inputs for texturing pipeline.
+struct TexturePipelineRasterizerData
+{
+    float4 position [[position]];
+    float2 texcoord;
+};
+
+// Vertex shader which adjusts positions by an aspect ratio and passes texture
+// coordinates through to the rasterizer.
+vertex TexturePipelineRasterizerData
+textureVertexShader(const uint vertexID [[ vertex_id ]],
+                    const device AAPLTextureVertex *vertices [[ buffer(AAPLVertexInputIndexVertices) ]],
+                    constant float &aspectRatio [[ buffer(AAPLVertexInputIndexAspectRatio) ]])
+{
+    TexturePipelineRasterizerData out;
+
+    out.position = vector_float4(0.0, 0.0, 0.0, 1.0);
+
+    out.position.x = vertices[vertexID].position.x * aspectRatio;
+    out.position.y = vertices[vertexID].position.y;
+
+    out.texcoord = vertices[vertexID].texcoord;
+
+    return out;
+}
+// Fragment shader that samples a texture and outputs the sampled color.
+fragment float4 textureFragmentShader(TexturePipelineRasterizerData in      [[stage_in]],
+                                      texture2d<float>              colorMap [[texture(AAPLTextureInputIndexColor)]])
+{
+    sampler simpleSampler;
+
+    // Sample data from the texture.
+    float4 colorSample = colorMap.sample(simpleSampler, in.texcoord);
+
+    // Return the color sample as the final color.
+    return colorSample;
+}

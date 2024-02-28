@@ -10,7 +10,6 @@
 //
 #ifndef ShaderTypes_h
 #define ShaderTypes_h
-
 #ifdef __METAL_VERSION__
 #define NS_ENUM(_type, _name) enum _name : _type _name; enum _name : _type
 typedef metal::int32_t EnumBackingType;
@@ -18,32 +17,34 @@ typedef metal::int32_t EnumBackingType;
 #import <Foundation/Foundation.h>
 typedef NSInteger EnumBackingType;
 #endif
-
 #include <simd/simd.h>
 
-typedef NS_ENUM(EnumBackingType, BufferIndex)
+typedef enum AAPLVertexInputIndex
 {
-    BufferIndexMeshPositions = 0,
-    BufferIndexMeshGenerics  = 1,
-    BufferIndexUniforms      = 2
-};
+    AAPLVertexInputIndexVertices    = 0,
+    AAPLVertexInputIndexAspectRatio = 1,
+} AAPLVertexInputIndex;
 
+typedef enum AAPLTextureInputIndex
+{
+    AAPLTextureInputIndexColor = 0,
+} AAPLTextureInputIndex;
+
+typedef struct
+{
+    vector_float2 position;
+    vector_float4 color;
+} AAPLSimpleVertex;
 typedef NS_ENUM(EnumBackingType, VertexAttribute)
 {
     VertexAttributePosition  = 0,
     VertexAttributeTexcoord  = 1,
 };
-
-typedef NS_ENUM(EnumBackingType, TextureIndex)
-{
-    TextureIndexColor    = 0,
-};
-
 typedef struct
 {
-    matrix_float4x4 projectionMatrix;
-    matrix_float4x4 modelViewMatrix;
-} Uniforms;
+    vector_float2 position;
+    vector_float2 texcoord;
+} AAPLTextureVertex;
 
 #endif /* ShaderTypes_h */
 

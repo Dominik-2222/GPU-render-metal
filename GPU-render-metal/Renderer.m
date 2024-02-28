@@ -15,332 +15,237 @@
 
 static const NSUInteger kMaxBuffersInFlight = 3;
 
-static const size_t kAlignedUniformsSize = (sizeof(Uniforms) & ~0xFF) + 0x100;
 
 @implementation Renderer
 {
-    dispatch_semaphore_t _inFlightSemaphore;
-    id <MTLDevice> _device;
-    id <MTLCommandQueue> _commandQueue;
+    // Texture to render to and then sample from.
+    id<MTLTexture> _renderTargetTexture;
 
-    id <MTLBuffer> _dynamicUniformBuffer;
-    id <MTLRenderPipelineState> _pipelineState;
-    id <MTLDepthStencilState> _depthState;
-    id <MTLTexture> _colorMap;
-    MTLVertexDescriptor *_mtlVertexDescriptor;
+    // Render pass descriptor to draw to the texture
+    MTLRenderPassDescriptor* _renderToTextureRenderPassDescriptor;
+    MTLRenderPassDescriptor* _renderToTextureRenderPassDescriptor2;
 
-    uint32_t _uniformBufferOffset;
+    // A pipeline object to render to the offscreen texture.
+    id<MTLRenderPipelineState> _renderToTextureRenderPipeline;
+    id<MTLRenderPipelineState> _renderToTextureRenderPipeline2;
 
-    uint8_t _uniformBufferIndex;
+    // A pipeline object to render to the screen.
+    id<MTLRenderPipelineState> _drawableRenderPipeline;
+    id<MTLRenderPipelineState> _drawableRenderPipeline2;
 
-    void* _uniformBufferAddress;
+    // Ratio of width to height to scale positions in the vertex shader.
+    float _aspectRatio;
 
-    matrix_float4x4 _projectionMatrix;
+    id<MTLDevice> _device;
 
-    float _rotation;
-
-    MTKMesh *_mesh;
+    id<MTLCommandQueue> _commandQueue;
 }
 
--(nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)view;
+- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView
 {
     self = [super init];
     if(self)
     {
-        _device = view.device;
-        _inFlightSemaphore = dispatch_semaphore_create(kMaxBuffersInFlight);
-        [self _loadMetalWithView:view];
-        [self _loadAssets];
-    }
+        NSError *error;
 
+        _device = mtkView.device;
+
+        mtkView.clearColor = MTLClearColorMake(1.0, 0.0, 0.0, 1.0);
+
+        _commandQueue = [_device newCommandQueue];
+
+        // Set up a texture for rendering to and sampling from
+        MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor new];
+        texDescriptor.textureType = MTLTextureType2D;
+        texDescriptor.width = 512;
+        texDescriptor.height = 512;
+        texDescriptor.pixelFormat = MTLPixelFormatRGBA8Unorm;
+        texDescriptor.usage = MTLTextureUsageRenderTarget |
+                              MTLTextureUsageShaderRead;
+
+        _renderTargetTexture = [_device newTextureWithDescriptor:texDescriptor];
+
+        // Set up a render pass descriptor for the render pass to render into
+        // _renderTargetTexture.
+
+        _renderToTextureRenderPassDescriptor = [MTLRenderPassDescriptor new];
+
+        _renderToTextureRenderPassDescriptor.colorAttachments[0].texture = _renderTargetTexture;
+
+        _renderToTextureRenderPassDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
+        _renderToTextureRenderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
+
+        _renderToTextureRenderPassDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+        
+        _renderToTextureRenderPassDescriptor2 = [MTLRenderPassDescriptor new];
+
+        _renderToTextureRenderPassDescriptor2.colorAttachments[0].texture = _renderTargetTexture;
+
+        _renderToTextureRenderPassDescriptor2.colorAttachments[0].loadAction = MTLLoadActionClear;
+     //   _renderToTextureRenderPassDescriptor2.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1);
+
+        _renderToTextureRenderPassDescriptor2.colorAttachments[0].storeAction = MTLStoreActionStore;
+
+        id<MTLLibrary> defaultLibrary = [_device newDefaultLibrary];
+
+        MTLRenderPipelineDescriptor *pipelineStateDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
+        pipelineStateDescriptor.label = @"Drawable Render Pipeline";
+        pipelineStateDescriptor.rasterSampleCount = mtkView.sampleCount;
+        pipelineStateDescriptor.vertexFunction =  [defaultLibrary newFunctionWithName:@"textureVertexShader"];
+        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"textureFragmentShader"];
+        pipelineStateDescriptor.colorAttachments[0].pixelFormat = mtkView.colorPixelFormat;
+        pipelineStateDescriptor.vertexBuffers[AAPLVertexInputIndexVertices].mutability = MTLMutabilityImmutable;
+
+        _drawableRenderPipeline = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
+
+        NSAssert(_drawableRenderPipeline, @"Failed to create pipeline state to render to screen: %@", error);
+
+        // Set up pipeline for rendering to the offscreen texture. Reuse the
+        // descriptor and change properties that differ.
+        pipelineStateDescriptor.label = @"Offscreen Render Pipeline";
+        pipelineStateDescriptor.rasterSampleCount = 1;
+        pipelineStateDescriptor.vertexFunction =  [defaultLibrary newFunctionWithName:@"simpleVertexShader"];
+        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"simpleFragmentShader"];
+        pipelineStateDescriptor.colorAttachments[0].pixelFormat = _renderTargetTexture.pixelFormat;
+        pipelineStateDescriptor.colorAttachments[0].blendingEnabled=YES;
+        pipelineStateDescriptor.colorAttachments[0].rgbBlendOperation           = MTLBlendOperationAdd;
+        pipelineStateDescriptor.colorAttachments[0].alphaBlendOperation         = MTLBlendOperationAdd;
+
+        pipelineStateDescriptor.colorAttachments[0].sourceRGBBlendFactor        = MTLBlendFactorOne;
+        pipelineStateDescriptor.colorAttachments[0].sourceAlphaBlendFactor      = MTLBlendFactorOne;
+
+        pipelineStateDescriptor.colorAttachments[0].destinationRGBBlendFactor   = MTLBlendFactorOneMinusSourceAlpha;
+        pipelineStateDescriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+        
+        _renderToTextureRenderPipeline = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
+        NSAssert(_renderToTextureRenderPipeline, @"Failed to create pipeline state to render to texture: %@", error);
+        pipelineStateDescriptor.label = @"Offscreen Render Pipeline";
+        pipelineStateDescriptor.rasterSampleCount = 1;
+        pipelineStateDescriptor.vertexFunction =  [defaultLibrary newFunctionWithName:@"simpleVertexShader"];
+        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"simpleFragmentShader2"];
+        pipelineStateDescriptor.colorAttachments[0].pixelFormat = _renderTargetTexture.pixelFormat;
+        _renderToTextureRenderPipeline2 = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
+        NSAssert(_renderToTextureRenderPipeline2, @"Failed to create pipeline state to render to texture: %@", error);
+    }
     return self;
 }
 
 - (void)_loadMetalWithView:(nonnull MTKView *)view;
 {
-    /// Load Metal state objects and initialize renderer dependent view properties
 
-    view.depthStencilPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
-    view.colorPixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
-    view.sampleCount = 1;
 
-    _mtlVertexDescriptor = [[MTLVertexDescriptor alloc] init];
-
-    _mtlVertexDescriptor.attributes[VertexAttributePosition].format = MTLVertexFormatFloat3;
-    _mtlVertexDescriptor.attributes[VertexAttributePosition].offset = 0;
-    _mtlVertexDescriptor.attributes[VertexAttributePosition].bufferIndex = BufferIndexMeshPositions;
-
-    _mtlVertexDescriptor.attributes[VertexAttributeTexcoord].format = MTLVertexFormatFloat2;
-    _mtlVertexDescriptor.attributes[VertexAttributeTexcoord].offset = 0;
-    _mtlVertexDescriptor.attributes[VertexAttributeTexcoord].bufferIndex = BufferIndexMeshGenerics;
-
-    _mtlVertexDescriptor.layouts[BufferIndexMeshPositions].stride = 12;
-    _mtlVertexDescriptor.layouts[BufferIndexMeshPositions].stepRate = 1;
-    _mtlVertexDescriptor.layouts[BufferIndexMeshPositions].stepFunction = MTLVertexStepFunctionPerVertex;
-
-    _mtlVertexDescriptor.layouts[BufferIndexMeshGenerics].stride = 8;
-    _mtlVertexDescriptor.layouts[BufferIndexMeshGenerics].stepRate = 1;
-    _mtlVertexDescriptor.layouts[BufferIndexMeshGenerics].stepFunction = MTLVertexStepFunctionPerVertex;
-
-    id<MTLLibrary> defaultLibrary = [_device newDefaultLibrary];
-
-    id <MTLFunction> vertexFunction = [defaultLibrary newFunctionWithName:@"vertexShader"];
-
-    id <MTLFunction> fragmentFunction = [defaultLibrary newFunctionWithName:@"fragmentShader"];
-
-    MTLRenderPipelineDescriptor *pipelineStateDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
-    pipelineStateDescriptor.label = @"MyPipeline";
-    pipelineStateDescriptor.rasterSampleCount = view.sampleCount;
-    pipelineStateDescriptor.vertexFunction = vertexFunction;
-    pipelineStateDescriptor.fragmentFunction = fragmentFunction;
-    pipelineStateDescriptor.vertexDescriptor = _mtlVertexDescriptor;
-    pipelineStateDescriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat;
-    pipelineStateDescriptor.depthAttachmentPixelFormat = view.depthStencilPixelFormat;
-    pipelineStateDescriptor.stencilAttachmentPixelFormat = view.depthStencilPixelFormat;
-
-    NSError *error = NULL;
-    _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
-    if (!_pipelineState)
-    {
-        NSLog(@"Failed to created pipeline state, error %@", error);
-    }
-
-    MTLDepthStencilDescriptor *depthStateDesc = [[MTLDepthStencilDescriptor alloc] init];
-    depthStateDesc.depthCompareFunction = MTLCompareFunctionLess;
-    depthStateDesc.depthWriteEnabled = YES;
-    _depthState = [_device newDepthStencilStateWithDescriptor:depthStateDesc];
-
-    NSUInteger uniformBufferSize = kAlignedUniformsSize * kMaxBuffersInFlight;
-
-    _dynamicUniformBuffer = [_device newBufferWithLength:uniformBufferSize
-                                                 options:MTLResourceStorageModeShared];
-
-    _dynamicUniformBuffer.label = @"UniformBuffer";
-
-    _commandQueue = [_device newCommandQueue];
+    
+    
 }
 
 - (void)_loadAssets
 {
-    /// Load assets into metal objects
-
-    NSError *error;
-
-    MTKMeshBufferAllocator *metalAllocator = [[MTKMeshBufferAllocator alloc]
-                                              initWithDevice: _device];
-
-    MDLMesh *mdlMesh = [MDLMesh newBoxWithDimensions:(vector_float3){4, 4, 4}
-                                            segments:(vector_uint3){2, 2, 2}
-                                        geometryType:MDLGeometryTypeTriangles
-                                       inwardNormals:NO
-                                           allocator:metalAllocator];
-
-    MDLVertexDescriptor *mdlVertexDescriptor =
-    MTKModelIOVertexDescriptorFromMetal(_mtlVertexDescriptor);
-
-    mdlVertexDescriptor.attributes[VertexAttributePosition].name  = MDLVertexAttributePosition;
-    mdlVertexDescriptor.attributes[VertexAttributeTexcoord].name  = MDLVertexAttributeTextureCoordinate;
-
-    mdlMesh.vertexDescriptor = mdlVertexDescriptor;
-
-    _mesh = [[MTKMesh alloc] initWithMesh:mdlMesh
-                                   device:_device
-                                    error:&error];
-
-    if(!_mesh || error)
-    {
-        NSLog(@"Error creating MetalKit mesh %@", error.localizedDescription);
-    }
-
-    MTKTextureLoader* textureLoader = [[MTKTextureLoader alloc] initWithDevice:_device];
-
-    NSDictionary *textureLoaderOptions =
-    @{
-      MTKTextureLoaderOptionTextureUsage       : @(MTLTextureUsageShaderRead),
-      MTKTextureLoaderOptionTextureStorageMode : @(MTLStorageModePrivate)
-      };
-
-    _colorMap = [textureLoader newTextureWithName:@"new_texture"
-                                      scaleFactor:1.0
-                                           bundle:nil
-                                          options:textureLoaderOptions
-                                            error:&error];
-
-    if(!_colorMap || error)
-    {
-        NSLog(@"Error creating texture %@", error.localizedDescription);
-    }
 }
 
 - (void)_updateDynamicBufferState
 {
     /// Update the state of our uniform buffers before rendering
 
-    _uniformBufferIndex = (_uniformBufferIndex + 1) % kMaxBuffersInFlight;
-
-    _uniformBufferOffset = kAlignedUniformsSize * _uniformBufferIndex;
-
-    _uniformBufferAddress = ((uint8_t*)_dynamicUniformBuffer.contents) + _uniformBufferOffset;
 }
 
 - (void)_updateGameState
 {
-    /// Update any game state before encoding renderint commands to our drawable
 
-    Uniforms * uniforms = (Uniforms*)_uniformBufferAddress;
-
-    uniforms->projectionMatrix = _projectionMatrix;
-
-    vector_float3 rotationAxis = {1, 1, 0};
-    matrix_float4x4 modelMatrix = matrix4x4_rotation(_rotation, rotationAxis);
-    matrix_float4x4 viewMatrix = matrix4x4_translation(0.0, 0.0, -8.0);
-
-    uniforms->modelViewMatrix = matrix_multiply(viewMatrix, modelMatrix);
-
-    _rotation += .01;
+    
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view
 {
-    /// Per frame updates here
-
-    dispatch_semaphore_wait(_inFlightSemaphore, DISPATCH_TIME_FOREVER);
-
-    id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
-    commandBuffer.label = @"MyCommand";
-
-    __block dispatch_semaphore_t block_sema = _inFlightSemaphore;
-    [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer)
-     {
-         dispatch_semaphore_signal(block_sema);
-     }];
-
-    [self _updateDynamicBufferState];
-
-    [self _updateGameState];
-
-    /// Delay getting the currentRenderPassDescriptor until we absolutely need it to avoid
-    ///   holding onto the drawable and blocking the display pipeline any longer than necessary
-   MTLRenderPassDescriptor* renderPassDescriptor = view.currentRenderPassDescriptor;
-//
-//    
-//    MTLRenderPassDescriptor* rendPas2 = view.currentRenderPassDescriptor;
-//    
-//    MTLTextureDescriptor *texDesc;
-//    id <MTLTexture> tmpTex = [view.device newTextureWithDescriptor:texDesc];
-//    rendPas2.colorAttachments[0].texture = tmpTex;
     
-    
-    
-    if(renderPassDescriptor != nil) {
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+    commandBuffer.label = @"Command Buffer";
 
-        /// Final pass rendering code here
-
-        id <MTLRenderCommandEncoder> renderEncoder =
-        [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        renderEncoder.label = @"MyRenderEncoder";
-
-        [renderEncoder pushDebugGroup:@"DrawBox"];
-
-        [renderEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
-        [renderEncoder setCullMode:MTLCullModeBack];
-        [renderEncoder setRenderPipelineState:_pipelineState];
-        [renderEncoder setDepthStencilState:_depthState];
-
-        [renderEncoder setVertexBuffer:_dynamicUniformBuffer
-                                offset:_uniformBufferOffset
-                               atIndex:BufferIndexUniforms];
-
-        [renderEncoder setFragmentBuffer:_dynamicUniformBuffer
-                                  offset:_uniformBufferOffset
-                                 atIndex:BufferIndexUniforms];
-
-        for (NSUInteger bufferIndex = 0; bufferIndex < _mesh.vertexBuffers.count; bufferIndex++)
+    {
+        static const AAPLSimpleVertex triVertices[] =
         {
-            MTKMeshBuffer *vertexBuffer = _mesh.vertexBuffers[bufferIndex];
-            if((NSNull*)vertexBuffer != [NSNull null])
-            {
-                [renderEncoder setVertexBuffer:vertexBuffer.buffer
-                                        offset:vertexBuffer.offset
-                                       atIndex:bufferIndex];
-            }
-        }
+            // Positions     ,  Colors
+            { {  0.5,  -0.5 },  { 1.0, 0.0, 0.0, 1.0 } },//czerwony
+            { { -0.5,  -0.5 },  { 0.0, 1.0, 0.0, 1.0 } },//zielony
+            { {  0.5,   0.5 },  { 0.0, 0.0, 1.0, 1.0 } },//niebieski
+            { {  -0.5,  0.5 },  { 1.0, 0.0, 0.0, 1.0 } },//czerwony
+            { { 0.5,  0.5 },  { 0.0, 1.0, 0.0, 1.0 } },//zielony
+            { {  -0.5,   -0.5 },  { 0.0, 0.0, 1.0, 1.0 } },//niebieski
+        };
 
-        [renderEncoder setFragmentTexture:_colorMap
-                                  atIndex:TextureIndexColor];
+        id<MTLRenderCommandEncoder> renderEncoder =
+            [commandBuffer renderCommandEncoderWithDescriptor:_renderToTextureRenderPassDescriptor];
+        renderEncoder.label = @"Offscreen Render Pass";
+        [renderEncoder setRenderPipelineState:_renderToTextureRenderPipeline];
 
-        float testFloat = 0.5;
-        [renderEncoder setFragmentBytes:&testFloat length:sizeof(float) atIndex:3];
-        
-        for(MTKSubmesh *submesh in _mesh.submeshes)
+        [renderEncoder setVertexBytes:&triVertices
+                               length:sizeof(triVertices)
+                              atIndex:AAPLVertexInputIndexVertices];
+
+        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                          vertexStart:0
+                          vertexCount:6];
+
+        // End encoding commands for this render pass.
+        [renderEncoder endEncoding];
+    }
+//---- _renderTargetTexture
+    
+    //_renderTargetTexture -> _renderTargetTexture2;
+   // [renderEncoder setFragmentTexture:_renderTargetTexture atIndex:AAPLTextureInputIndexColor];
+
+ 
+    
+    //---------------------------
+    MTLRenderPassDescriptor *drawableRenderPassDescriptor = view.currentRenderPassDescriptor;
+    if(drawableRenderPassDescriptor != nil)
+    {
+        static const AAPLTextureVertex quadVertices[] =
         {
-            [renderEncoder drawIndexedPrimitives:submesh.primitiveType
-                                      indexCount:submesh.indexCount
-                                       indexType:submesh.indexType
-                                     indexBuffer:submesh.indexBuffer.buffer
-                               indexBufferOffset:submesh.indexBuffer.offset];
-        }
+            // Positions     , Texture coordinates
+            { {  0.5,  -0.5 },  { 1.0, 1.0 } },//trojkat arena 2
+            { { -0.5,  -0.5 },  { 0.0, 1.0 } },
+            { { -0.5,   0.5 },  { 0.0, 0.0 } },
 
-        [renderEncoder popDebugGroup];
+            { {  0.5,  -0.5 },  { 1.0, 1.0 } },//trojkat arena 1
+            { { -0.5,   0.5 },  { 0.0, 0.0 } },
+            { {  0.5,   0.5 },  { 1.0, 0.0 } },
+        };
+        id<MTLRenderCommandEncoder> renderEncoder =
+            [commandBuffer renderCommandEncoderWithDescriptor:drawableRenderPassDescriptor];
+        renderEncoder.label = @"Drawable Render Pass";
+
+        [renderEncoder setRenderPipelineState:_drawableRenderPipeline];
+
+        [renderEncoder setVertexBytes:&quadVertices
+                               length:sizeof(quadVertices)
+                              atIndex:AAPLVertexInputIndexVertices];
+
+        [renderEncoder setVertexBytes:&_aspectRatio
+                               length:sizeof(_aspectRatio)
+                              atIndex:AAPLVertexInputIndexAspectRatio];
+
+        // Set the offscreen texture as the source texture.
+        [renderEncoder setFragmentTexture:_renderTargetTexture atIndex:AAPLTextureInputIndexColor];
+
+        // Draw quad with rendered texture.
+        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                          vertexStart:0
+                          vertexCount:6];
 
         [renderEncoder endEncoding];
 
         [commandBuffer presentDrawable:view.currentDrawable];
     }
+    
 
     [commandBuffer commit];
 }
 
+#pragma mark - MetalKit View Delegate
 - (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size
 {
-    /// Respond to drawable size or orientation changes here
-
-    float aspect = size.width / (float)size.height;
-    _projectionMatrix = matrix_perspective_right_hand(65.0f * (M_PI / 180.0f), aspect, 0.1f, 100.0f);
+    _aspectRatio =  (float)size.height / (float)size.width;
 }
 
-#pragma mark Matrix Math Utilities
-
-matrix_float4x4 matrix4x4_translation(float tx, float ty, float tz)
-{
-    return (matrix_float4x4) {{
-        { 1,   0,  0,  0 },
-        { 0,   1,  0,  0 },
-        { 0,   0,  1,  0 },
-        { tx, ty, tz,  1 }
-    }};
-}
-
-static matrix_float4x4 matrix4x4_rotation(float radians, vector_float3 axis)
-{
-    axis = vector_normalize(axis);
-    float ct = cosf(radians);
-    float st = sinf(radians);
-    float ci = 1 - ct;
-    float x = axis.x, y = axis.y, z = axis.z;
-    st=0.0;
-    ci=0.0;
-    ct=1.0;
-    return (matrix_float4x4) {{
-        { ct + x * x * ci,     y * x * ci + z * st, z * x * ci - y * st, 0},
-        { x * y * ci - z * st,     ct + y * y * ci, z * y * ci + x * st, 0},
-        { x * z * ci + y * st, y * z * ci - x * st,     ct + z * z * ci, 0},
-        {                   0,                   0,                   0, 1}
-    }};
-}
-
-matrix_float4x4 matrix_perspective_right_hand(float fovyRadians, float aspect, float nearZ, float farZ)
-{
-    float ys = 1 / tanf(fovyRadians * 0.5);
-    float xs = ys / aspect;
-    float zs = farZ / (nearZ - farZ);
-
-    return (matrix_float4x4) {{
-        { xs,   0,          0,  0 },
-        {  0,  ys,          0,  0 },
-        {  0,   0,         zs, -1 },
-        {  0,   0, nearZ * zs,  0 }
-    }};
-}
 
 @end

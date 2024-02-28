@@ -64,10 +64,41 @@ fragment float4 simpleFragmentShader(SimplePipelineRasterizerData in [[stage_in]
         pos.y *= 8.0;
 
        // float2 rotatedPos = float2(pos.y, pos.x);
+    
     float2 gridPos = floor(pos);
     
-        float checker = step(0.5, fmod(gridPos.x + gridPos.y,2.0));
+ float  checker=0.5;
+    
+    
+    for(float end_y=3.0, end_x=-3.0;end_y>-3.0;end_y--, end_x++){
+        float i=-end_x;
+        while (i<end_x){
+            if(pos.x>(end_x+i) && pos.y>end_y){
+                checker = step(0.0, fmod(-gridPos.y - gridPos.x,2.0));//prawa gora
+                
+            }else{
+                checker = step(0.0, fmod(gridPos.y + gridPos.x,2.0));//lewa dol
+                
+            }
+            i++;
+            
+        }
+            
+     
+    }
+    
+     
+    
+    //checker = step(0.0, fmod(gridPos.y - gridPos.x,2.0));//prawa dol
+   // checker = step(0.0, fmod(gridPos.x - gridPos.y,2.0));//lewa gora
+    
+    
 
+    //}
+        
+         
+   
+     
         return float4(checker, checker, checker, 1.0);
 
 }

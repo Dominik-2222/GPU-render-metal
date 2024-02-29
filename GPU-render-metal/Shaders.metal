@@ -93,6 +93,10 @@ fragment float4 chess_board_generator(SimplePipelineRasterizerData in [[stage_in
     float  checker=step(0.0,sin(2*M_PI_2_F*l_kol*in.pos.x)*sin(2*M_PI_2_F*l_kol*in.pos.y));
         return float4(checker, checker, checker, 1.0);
 }
+fragment float4 texture_from_file(SimplePipelineRasterizerData in [[stage_in]])
+{
+        return in.color;
+}
 
 
 fragment float4 textureFragmentShader_gauss2_przebiegi(TexturePipelineRasterizerData in      [[stage_in]],
@@ -101,8 +105,8 @@ fragment float4 textureFragmentShader_gauss2_przebiegi(TexturePipelineRasterizer
 {
     sampler simpleSampler;
     float4 colorSample = colorMap.sample(simpleSampler, in.texcoord);
-    float sigma =15.0;
-    float radius = 3.0 * sigma;
+    float sigma =n;
+    float radius = sigma;
     float weightsum = 0.0;
     float4 sum = float4(0.0);
     if(n==0){

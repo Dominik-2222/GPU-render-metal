@@ -30,8 +30,8 @@
             filePath = "GPU-render-metal/Renderer.m"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "270"
-            endingLineNumber = "270"
+            startingLineNumber = "266"
+            endingLineNumber = "266"
             landmarkName = "-drawInMTKView:"
             landmarkType = "7">
             <Locations>
@@ -78,8 +78,8 @@
             filePath = "GPU-render-metal/Renderer.m"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "195"
-            endingLineNumber = "195"
+            startingLineNumber = "191"
+            endingLineNumber = "191"
             landmarkName = "-drawInMTKView:"
             landmarkType = "7">
          </BreakpointContent>
@@ -94,8 +94,8 @@
             filePath = "GPU-render-metal/Renderer.m"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "159"
-            endingLineNumber = "159"
+            startingLineNumber = "155"
+            endingLineNumber = "155"
             landmarkName = "-_loadAssets"
             landmarkType = "7">
          </BreakpointContent>

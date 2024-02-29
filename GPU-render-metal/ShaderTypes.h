@@ -41,6 +41,15 @@ typedef NS_ENUM(EnumBackingType, VertexAttribute)
     VertexAttributePosition  = 0,
     VertexAttributeTexcoord  = 1,
 };
+typedef struct option{
+    unsigned short gauss1przebieg;
+    unsigned short gauss2przebieg;
+    unsigned short kwase;
+    bool gray_scale;
+    bool negative;
+}option;
+
+
 typedef struct
 {
     vector_float2 position;

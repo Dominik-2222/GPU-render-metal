@@ -95,69 +95,82 @@ fragment float4 chess_board_generator(SimplePipelineRasterizerData in [[stage_in
 }
 
 
-
-fragment float4 textureFragmentShadery(TexturePipelineRasterizerData in      [[stage_in]],
-                                       texture2d<float>              colorMap [[texture(1)]]
-                                       )
+fragment float4 textureFragmentShader_gauss2_przebiegi(TexturePipelineRasterizerData in      [[stage_in]],
+                                       texture2d<float>              colorMap [[texture(1)]],
+                                       constant float &n [[ buffer(Iterator) ]])
 {
     sampler simpleSampler;
-    // Sample data from the texture.
     float4 colorSample = colorMap.sample(simpleSampler, in.texcoord);
     float sigma =15.0;
     float radius = 3.0 * sigma;
     float weightsum = 0.0;
     float4 sum = float4(0.0);
-
-    for(float y = -radius; y <= radius; y++) {
-        float exponent = exp(-(y * y) / (2.0 * sigma * sigma));
-        weightsum += exponent;
-        float2 offset = float2(0.0, y / colorMap.get_height());
-        float4 sample = colorMap.sample(simpleSampler, in.texcoord + offset);
-        sum += sample * exponent;
+    if(n==0){
+        for(float x = -radius; x <= radius; x++) {
+            float exponent = exp(-(x * x) / (2.0 * sigma * sigma));
+            weightsum += exponent;
+            float2 offset = float2(x / colorMap.get_width(), 0.0); // Adjusted for x-axis
+            float4 sample = colorMap.sample(simpleSampler, in.texcoord + offset);
+            sum += sample * exponent;
+        }
     }
-
+    if(n==1){
+        for(float y = -radius; y <= radius; y++) {
+            float exponent = exp(-(y * y) / (2.0 * sigma * sigma));
+            weightsum += exponent;
+            float2 offset = float2(0.0, y / colorMap.get_height());
+            float4 sample = colorMap.sample(simpleSampler, in.texcoord + offset);
+            sum += sample * exponent;
+        }
+    }
     sum /= weightsum;
-    // Preserve original alpha value
     sum.a = colorSample.a;
-
     return sum;
 }
 
-fragment float4 textureFragmentShaderx(TexturePipelineRasterizerData in      [[stage_in]],
-                                       texture2d<float>              colorMap [[texture(1)]])
+fragment float4 textureFragmentShader_gauss1_przebiegi(TexturePipelineRasterizerData in      [[stage_in]],
+                                       texture2d<float>              colorMap [[texture(1)]],
+                                       constant float &n [[ buffer(Iterator) ]])
 {
+    
     sampler simpleSampler;
-    // Sample data from the texture.
     float4 colorSample = colorMap.sample(simpleSampler, in.texcoord);
     float sigma =15.0;
     float radius = 3.0 * sigma;
     float weightsum = 0.0;
     float4 sum = float4(0.0);
-
-    for(float x = -radius; x <= radius; x++) {
-        float exponent = exp(-(x * x) / (2.0 * sigma * sigma));
-        weightsum += exponent;
-        float2 offset = float2(x / colorMap.get_width(), 0.0); // Adjusted for x-axis
-        float4 sample = colorMap.sample(simpleSampler, in.texcoord + offset);
-        sum += sample * exponent;
-    }
-
+        for(float y = -radius; y <= radius; y++) {
+            for(float x = -radius; x <= radius; x++) {
+                   float exponent = exp(-(x * x+y*y) / (2.0 * sigma * sigma));
+                   weightsum += exponent;
+                   float2 offset = float2(x / colorMap.get_width(), 0.0); // Adjusted for x-axis
+                   float4 sample = colorMap.sample(simpleSampler, in.texcoord + offset);
+                   sum += sample * exponent;
+               }
+        }
+   
     sum /= weightsum;
-    // Preserve original alpha value
     sum.a = colorSample.a;
-
     return sum;
 }
+
 
 fragment float4 kawase(TexturePipelineRasterizerData in      [[stage_in]],
                        texture2d<float>              colorMap [[texture(1)]],
-                       constant float &n [[ buffer(Iterator) ]]){
-    sampler simpleSampler;
-    float4 colorSample = colorMap.sample(simpleSampler, in.texcoord);
+                       constant float &n [[ buffer(Iterator) ]]) {
     
-    // Sample data from the texture.
-
-    return colorSample;
+    sampler simpleSampler(mag_filter::linear, min_filter::linear, address::clamp_to_edge);
+    float4 sum = float4(0.0);
+    float2 texCoord = in.texcoord;
+    float2 pixelSize = 1.0 / float2(colorMap.get_width(),colorMap.get_height());
+    
+    float offset = n * 0.5;
+    for (int i = -1; i <= 1; ++i) {
+        for (int j = -1; j <= 1; ++j) {
+            float2 offsetCoord = texCoord + float2(i, j) * offset * pixelSize;
+            sum += colorMap.sample(simpleSampler, offsetCoord);
+        }
+    }
+    sum /= 9.0;
+    return sum;
 }
-
-

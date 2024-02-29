@@ -31,7 +31,9 @@
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "270"
-            endingLineNumber = "270">
+            endingLineNumber = "270"
+            landmarkName = "-drawInMTKView:"
+            landmarkType = "7">
             <Locations>
                <Location
                   uuid = "C6B03388-C573-41F2-82A2-4B94BC736301 - 8873fedd97e19e75"
@@ -94,7 +96,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "159"
             endingLineNumber = "159"
-            landmarkName = "-_updateGameState"
+            landmarkName = "-_loadAssets"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

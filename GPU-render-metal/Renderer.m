@@ -1,9 +1,3 @@
-//
-//  Renderer.m
-//  GPU-render-metal
-//
-//  Created by MotionVFX on 26/02/2024.
-//
 
 #import <simd/simd.h>
 #import <ModelIO/ModelIO.h>
@@ -25,7 +19,7 @@ static const NSUInteger kMaxBuffersInFlight = 3;
     id<MTLTexture> _renderTargetTexture3;
 
     // Render pass descriptor to draw to the texture
-    MTLRenderPassDescriptor* _renderToTextureRenderPassDescriptor;
+    MTLRenderPassDescriptor* _renderToTextureRenderPassDescriptor_FBO;
     MTLRenderPassDescriptor* _renderToTextureRenderPassDescriptor2;
     MTLRenderPassDescriptor* _renderToTextureRenderPassDescriptor3;
 
@@ -34,9 +28,11 @@ static const NSUInteger kMaxBuffersInFlight = 3;
     id<MTLRenderPipelineState> _renderToTextureRenderPipeline2;
     id<MTLRenderPipelineState> _renderToTextureRenderPipeline3;
 
+
     // A pipeline object to render to the screen.
     id<MTLRenderPipelineState> _drawableRenderPipeline;
     id<MTLRenderPipelineState> _drawableRenderPipeline2;
+    id<MTLRenderPipelineState> _drawableRenderPipeline3;
 
     // Ratio of width to height to scale positions in the vertex shader.
     float _aspectRatio;
@@ -71,35 +67,37 @@ static const NSUInteger kMaxBuffersInFlight = 3;
 
         _renderTargetTexture = [_device newTextureWithDescriptor:texDescriptor];
         _renderTargetTexture2 = [_device newTextureWithDescriptor:texDescriptor];
-        _renderTargetTexture3 = [_device newTextureWithDescriptor:texDescriptor];
+    
 
         // Set up a render pass descriptor for the render pass to render into
         // _renderTargetTexture.
 
-        _renderToTextureRenderPassDescriptor = [MTLRenderPassDescriptor new];
+        _renderToTextureRenderPassDescriptor_FBO = [MTLRenderPassDescriptor new];
 
-        _renderToTextureRenderPassDescriptor.colorAttachments[0].texture = _renderTargetTexture;
+        _renderToTextureRenderPassDescriptor_FBO.colorAttachments[0].texture = _renderTargetTexture;
 
-        _renderToTextureRenderPassDescriptor.colorAttachments[0].loadAction = MTLLoadActionClear;
-        _renderToTextureRenderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
+        _renderToTextureRenderPassDescriptor_FBO.colorAttachments[0].loadAction = MTLLoadActionClear;
+        _renderToTextureRenderPassDescriptor_FBO.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0);
 
-        _renderToTextureRenderPassDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
+        _renderToTextureRenderPassDescriptor_FBO.colorAttachments[0].storeAction = MTLStoreActionStore;
         
         _renderToTextureRenderPassDescriptor2 = [MTLRenderPassDescriptor new];
 
-        _renderToTextureRenderPassDescriptor2.colorAttachments[0].texture = _renderTargetTexture2;
-
-        _renderToTextureRenderPassDescriptor2.colorAttachments[0].loadAction = MTLLoadActionClear;
-        _renderToTextureRenderPassDescriptor2.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 1, 1);
+        _renderToTextureRenderPassDescriptor2.colorAttachments[0].texture = _renderTargetTexture;
+        _renderToTextureRenderPassDescriptor2.colorAttachments[0].loadAction=MTLLoadActionLoad;
         _renderToTextureRenderPassDescriptor2.colorAttachments[0].storeAction = MTLStoreActionStore;
 
+        
+        
         _renderToTextureRenderPassDescriptor3 = [MTLRenderPassDescriptor new];
 
-        _renderToTextureRenderPassDescriptor3.colorAttachments[0].texture = _renderTargetTexture3;
-
-        _renderToTextureRenderPassDescriptor3.colorAttachments[0].loadAction = MTLLoadActionClear;
-        _renderToTextureRenderPassDescriptor3.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 1, 1);
+        _renderToTextureRenderPassDescriptor3.colorAttachments[0].texture = _renderTargetTexture2;
+        _renderToTextureRenderPassDescriptor3.colorAttachments[0].loadAction=MTLLoadActionLoad;
         _renderToTextureRenderPassDescriptor3.colorAttachments[0].storeAction = MTLStoreActionStore;
+
+        
+
+  
 
         id<MTLLibrary> defaultLibrary = [_device newDefaultLibrary];
 
@@ -107,7 +105,7 @@ static const NSUInteger kMaxBuffersInFlight = 3;
         pipelineStateDescriptor.label = @"Drawable Render Pipeline";
         pipelineStateDescriptor.rasterSampleCount = mtkView.sampleCount;
         pipelineStateDescriptor.vertexFunction =  [defaultLibrary newFunctionWithName:@"textureVertexShader"];
-        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"textureFragmentShader2"];
+        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"textureFragmentShadery"];
         pipelineStateDescriptor.colorAttachments[0].pixelFormat = mtkView.colorPixelFormat;
         pipelineStateDescriptor.vertexBuffers[AAPLVertexInputIndexVertices].mutability = MTLMutabilityImmutable;
         _drawableRenderPipeline = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
@@ -115,49 +113,49 @@ static const NSUInteger kMaxBuffersInFlight = 3;
 
         // Set up pipeline for rendering to the offscreen texture. Reuse the
         // descriptor and change properties that differ.
-        pipelineStateDescriptor.label = @"Offscreen Render Pipeline";
-        pipelineStateDescriptor.rasterSampleCount = 1;
-        pipelineStateDescriptor.vertexFunction =  [defaultLibrary newFunctionWithName:@"simpleVertexShader"];
-        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"chess_board_generator"];
-        pipelineStateDescriptor.colorAttachments[0].pixelFormat = _renderTargetTexture2.pixelFormat;
-        _renderToTextureRenderPipeline2 = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
-        NSAssert(_renderToTextureRenderPipeline2, @"Failed to create pipeline state to render to texture: %@", error);
-        
-        
-        
         pipelineStateDescriptor.label = @"Offscreen Render Pipeline2";
         pipelineStateDescriptor.rasterSampleCount = 1;
         pipelineStateDescriptor.vertexFunction =  [defaultLibrary newFunctionWithName:@"simpleVertexShader"];
-        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"gaussx"];
-        pipelineStateDescriptor.colorAttachments[0].pixelFormat = _renderTargetTexture3.pixelFormat;
+        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"chess_board_generator"];
+        pipelineStateDescriptor.colorAttachments[0].pixelFormat = _renderTargetTexture.pixelFormat;
+        _renderToTextureRenderPipeline2 = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
+        NSAssert(_renderToTextureRenderPipeline2, @"Failed to create pipeline state to render to texture: %@", error);
+        
+
+        pipelineStateDescriptor.label = @"Offscreen Render Pipeline";
+        pipelineStateDescriptor.rasterSampleCount = 1;
+        pipelineStateDescriptor.vertexFunction =  [defaultLibrary newFunctionWithName:@"textureVertexShader"];
+        pipelineStateDescriptor.fragmentFunction =  [defaultLibrary newFunctionWithName:@"textureFragmentShaderx"];
+        pipelineStateDescriptor.colorAttachments[0].pixelFormat = _renderTargetTexture2.pixelFormat;
         _renderToTextureRenderPipeline3 = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
         NSAssert(_renderToTextureRenderPipeline3, @"Failed to create pipeline state to render to texture: %@", error);
+        
+ 
+        
+
+        
+        
     }
     return self;
 }
 
-- (void)_loadMetalWithView:(nonnull MTKView *)view;
-{
-
-
-    
-    
-}
-
 - (void)_loadAssets
 {
-}
+//    NSError *error;
+//    MTKTextureLoader* textureLoader = [[MTKTextureLoader alloc] initWithDevice:_device];
+//
+//    NSDictionary *textureLoaderOptions =
+//    @{
+//      MTKTextureLoaderOptionTextureUsage       : @(MTLTextureUsageShaderRead),
+//      MTKTextureLoaderOptionTextureStorageMode : @(MTLStorageModePrivate)
+//      };
+//
+//    _renderTargetTexture2 = [textureLoader newTextureWithName:@"new_texture"
+//                                      scaleFactor:1.0
+//                                           bundle:nil
+//                                          options:textureLoaderOptions
+//                                            error:&error];
 
-- (void)_updateDynamicBufferState
-{
-    /// Update the state of our uniform buffers before rendering
-
-}
-
-- (void)_updateGameState
-{
-
-    
 }
 
 - (void)drawInMTKView:(nonnull MTKView *)view
@@ -165,45 +163,69 @@ static const NSUInteger kMaxBuffersInFlight = 3;
     
     id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
     commandBuffer.label = @"Command Buffer";
-
     {
-        static const AAPLSimpleVertex triVertices[] =
-        {
-            // Positions     ,  Colors
-            { {  0.5,  -0.5 },  { 1.0, 0.0, 0.0, 1.0 } },//czerwony
-            { { -0.5,  -0.5 },  { 0.0, 1.0, 0.0, 1.0 } },//zielony
-            { {  0.5,   0.5 },  { 0.0, 0.0, 1.0, 1.0 } },//niebieski
-            { {  -0.5,  0.5 },  { 1.0, 0.0, 0.0, 1.0 } },//czerwony
-            { { 0.5,  0.5 },  { 0.0, 1.0, 0.0, 1.0 } },//zielony
-            { {  -0.5,   -0.5 },  { 0.0, 0.0, 1.0, 1.0 } },//niebieski
-        };
+    static const AAPLSimpleVertex triVertices[] =
+    {
+        // Positions     ,  Colors
+        { {  0.5,  -0.5 },  { 1.0, 0.0, 0.0, 1.0 } },//czerwony
+        { { -0.5,  -0.5 },  { 0.0, 1.0, 0.0, 1.0 } },//zielony
+        { {  0.5,   0.5 },  { 0.0, 0.0, 1.0, 1.0 } },//niebieski
+        { {  -0.5,  0.5 },  { 1.0, 0.0, 0.0, 1.0 } },//czerwony
+        { { 0.5,  0.5 },  { 0.0, 1.0, 0.0, 1.0 } },//zielony
+        { {  -0.5,   -0.5 },  { 0.0, 0.0, 1.0, 1.0 } },//niebieski
+    };
+    
 
         id<MTLRenderCommandEncoder> renderEncoder =
-        [commandBuffer renderCommandEncoderWithDescriptor:_renderToTextureRenderPassDescriptor2];
+        [commandBuffer renderCommandEncoderWithDescriptor:_renderToTextureRenderPassDescriptor_FBO];
     renderEncoder.label = @"Offscreen Render Pass";
     [renderEncoder setRenderPipelineState:_renderToTextureRenderPipeline2];
-
+        [renderEncoder setFragmentTexture:_renderTargetTexture atIndex:0];
     [renderEncoder setVertexBytes:&triVertices
                            length:sizeof(triVertices)
                           atIndex:AAPLVertexInputIndexVertices];
-
+ 
     [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
                       vertexStart:0
                       vertexCount:6];
-
-    // End encoding commands for this render pass.
     [renderEncoder endEncoding];
     
     }
-    
-//---- _renderTargetTexture
-    
-    //_renderTargetTexture -> _renderTargetTexture2;
-   // [renderEncoder setFragmentTexture:_renderTargetTexture atIndex:AAPLTextureInputIndexColor];
+
+
+    {
+        static const AAPLTextureVertex triVertices[] =
+        {
+            // Positions     , Texture coordinates
+            { {  1,  -1 },  { 1.0, 1.0 } },//trojkat arena 2
+            { { -1,  -1 },  { 0.0, 1.0 } },
+            { { -1,   1 },  { 0.0, 0.0 } },
+
+            { {  1,  -1 },  { 1.0, 1.0 } },//trojkat arena 1
+            { { -1,   1 },  { 0.0, 0.0 } },
+            { {  1,   1 },  { 1.0, 0.0 } },
+        };
+        id<MTLRenderCommandEncoder> renderEncoder =
+        [commandBuffer renderCommandEncoderWithDescriptor:_renderToTextureRenderPassDescriptor2];
+    renderEncoder.label = @"Offscreen Render Pass2";
+    [renderEncoder setRenderPipelineState:_renderToTextureRenderPipeline3];
+
+        [renderEncoder setFragmentTexture:_renderTargetTexture atIndex:1];
 
  
+        [renderEncoder setVertexBytes:&triVertices
+                               length:sizeof(triVertices)
+                              atIndex:AAPLVertexInputIndexVertices];
+        
+        [renderEncoder setVertexBytes:&_aspectRatio
+                               length:sizeof(_aspectRatio)
+                              atIndex:AAPLVertexInputIndexAspectRatio];
+    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                      vertexStart:0
+                      vertexCount:6];
+    [renderEncoder endEncoding];
+    }
     
-    //---------------------------
     MTLRenderPassDescriptor *drawableRenderPassDescriptor = view.currentRenderPassDescriptor;
     if(drawableRenderPassDescriptor != nil)
     {
@@ -228,22 +250,20 @@ static const NSUInteger kMaxBuffersInFlight = 3;
                                length:sizeof(quadVertices)
                               atIndex:AAPLVertexInputIndexVertices];
 
-        [renderEncoder setVertexBytes:&_aspectRatio
-                               length:sizeof(_aspectRatio)
-                              atIndex:AAPLVertexInputIndexAspectRatio];
+//        [renderEncoder setVertexBytes:&_aspectRatio
+//                               length:sizeof(_aspectRatio)
+//                              atIndex:AAPLVertexInputIndexAspectRatio];
 
         // Set the offscreen texture as the source texture.
-        [renderEncoder setFragmentTexture:_renderTargetTexture2 atIndex:AAPLTextureInputIndexColor];
+        [renderEncoder setFragmentTexture:_renderTargetTexture atIndex:1];
 
         // Draw quad with rendered texture.
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
                           vertexStart:0
                           vertexCount:6];
-
         [renderEncoder endEncoding];
 
     }
-    
     [commandBuffer presentDrawable:view.currentDrawable];
 
     [commandBuffer commit];

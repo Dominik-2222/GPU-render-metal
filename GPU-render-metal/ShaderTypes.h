@@ -23,6 +23,7 @@ typedef enum AAPLVertexInputIndex
 {
     AAPLVertexInputIndexVertices    = 0,
     AAPLVertexInputIndexAspectRatio = 1,
+    Iterator=2,
 } AAPLVertexInputIndex;
 
 typedef enum AAPLTextureInputIndex

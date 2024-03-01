@@ -5,8 +5,8 @@
 //  Created by MotionVFX on 26/02/2024.
 //
 
-#import "GameViewController.h"
-#import "Renderer.h"
+#import "GameViewController.hpp"
+#import "Renderer.hpp"
 
 @implementation GameViewController
 {

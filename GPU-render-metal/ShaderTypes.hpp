@@ -15,15 +15,18 @@
 typedef metal::int32_t EnumBackingType;
 #else
 #import <Foundation/Foundation.h>
+
 typedef NSInteger EnumBackingType;
 #endif
 #include <simd/simd.h>
+using namespace simd;
 
 typedef enum AAPLVertexInputIndex
 {
     AAPLVertexInputIndexVertices    = 0,
     AAPLVertexInputIndexAspectRatio = 1,
     Iterator=2,
+    projectionMatrix=3
 } AAPLVertexInputIndex;
 
 typedef enum AAPLTextureInputIndex
@@ -33,8 +36,8 @@ typedef enum AAPLTextureInputIndex
 
 typedef struct
 {
-    vector_float2 position;
-    vector_float4 color;
+    float3 position;
+    float4 color;
 } AAPLSimpleVertex;
 typedef NS_ENUM(EnumBackingType, VertexAttribute)
 {
@@ -50,11 +53,22 @@ typedef struct option{
 }option;
 
 
-typedef struct
+typedef struct AAPLTextureVertex
 {
-    vector_float2 position;
-    vector_float2 texcoord;
+    float2 position;
+    float2 texcoord;
+    float4 perpectiveMatrix;
 } AAPLTextureVertex;
-
+typedef struct AAPLTextureVertex3D
+{
+    float4 position;
+    float2 texcoord;
+    float4 perpectiveMatrix;
+} AAPLTextureVertex3D;
+//typedef struct TransformationData{
+//    float4x4 modelMatrix;
+//    float4x4 viewMatrix;
+//    float4x4 perspectiveMatrix;
+//}TransformationData;
 #endif /* ShaderTypes_h */
 

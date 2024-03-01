@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		051452642B8C99F800642A20 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 051452632B8C99F800642A20 /* AppDelegate.m */; };
+		051452642B8C99F800642A20 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 051452632B8C99F800642A20 /* AppDelegate.mm */; };
 		051452672B8C99F800642A20 /* Renderer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 051452662B8C99F800642A20 /* Renderer.mm */; };
-		0514526A2B8C99F800642A20 /* GameViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 051452692B8C99F800642A20 /* GameViewController.m */; };
+		0514526A2B8C99F800642A20 /* GameViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 051452692B8C99F800642A20 /* GameViewController.mm */; };
 		0514526C2B8C99F800642A20 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 0514526B2B8C99F800642A20 /* Shaders.metal */; };
 		0514526F2B8C99FA00642A20 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0514526E2B8C99FA00642A20 /* Assets.xcassets */; };
 		051452722B8C99FA00642A20 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 051452702B8C99FA00642A20 /* Main.storyboard */; };
@@ -18,14 +18,14 @@
 
 /* Begin PBXFileReference section */
 		0514525F2B8C99F800642A20 /* GPU-render-metal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "GPU-render-metal.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		051452622B8C99F800642A20 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		051452632B8C99F800642A20 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
-		051452652B8C99F800642A20 /* Renderer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Renderer.h; sourceTree = "<group>"; };
+		051452622B8C99F800642A20 /* AppDelegate.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AppDelegate.hpp; sourceTree = "<group>"; };
+		051452632B8C99F800642A20 /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
+		051452652B8C99F800642A20 /* Renderer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Renderer.hpp; sourceTree = "<group>"; };
 		051452662B8C99F800642A20 /* Renderer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = Renderer.mm; sourceTree = "<group>"; };
-		051452682B8C99F800642A20 /* GameViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GameViewController.h; sourceTree = "<group>"; };
-		051452692B8C99F800642A20 /* GameViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = GameViewController.m; sourceTree = "<group>"; };
+		051452682B8C99F800642A20 /* GameViewController.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = GameViewController.hpp; sourceTree = "<group>"; };
+		051452692B8C99F800642A20 /* GameViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = GameViewController.mm; sourceTree = "<group>"; };
 		0514526B2B8C99F800642A20 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
-		0514526D2B8C99F800642A20 /* ShaderTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ShaderTypes.h; sourceTree = "<group>"; };
+		0514526D2B8C99F800642A20 /* ShaderTypes.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ShaderTypes.hpp; sourceTree = "<group>"; };
 		0514526E2B8C99FA00642A20 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		051452712B8C99FA00642A20 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		051452732B8C99FA00642A20 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
@@ -62,14 +62,14 @@
 		051452612B8C99F800642A20 /* GPU-render-metal */ = {
 			isa = PBXGroup;
 			children = (
-				051452622B8C99F800642A20 /* AppDelegate.h */,
-				051452632B8C99F800642A20 /* AppDelegate.m */,
-				051452652B8C99F800642A20 /* Renderer.h */,
+				051452622B8C99F800642A20 /* AppDelegate.hpp */,
+				051452632B8C99F800642A20 /* AppDelegate.mm */,
+				051452652B8C99F800642A20 /* Renderer.hpp */,
 				051452662B8C99F800642A20 /* Renderer.mm */,
-				051452682B8C99F800642A20 /* GameViewController.h */,
-				051452692B8C99F800642A20 /* GameViewController.m */,
+				051452682B8C99F800642A20 /* GameViewController.hpp */,
+				051452692B8C99F800642A20 /* GameViewController.mm */,
 				0514526B2B8C99F800642A20 /* Shaders.metal */,
-				0514526D2B8C99F800642A20 /* ShaderTypes.h */,
+				0514526D2B8C99F800642A20 /* ShaderTypes.hpp */,
 				0514526E2B8C99FA00642A20 /* Assets.xcassets */,
 				051452702B8C99FA00642A20 /* Main.storyboard */,
 				051452732B8C99FA00642A20 /* main.m */,
@@ -150,8 +150,8 @@
 				051452742B8C99FA00642A20 /* main.m in Sources */,
 				0514526C2B8C99F800642A20 /* Shaders.metal in Sources */,
 				051452672B8C99F800642A20 /* Renderer.mm in Sources */,
-				0514526A2B8C99F800642A20 /* GameViewController.m in Sources */,
-				051452642B8C99F800642A20 /* AppDelegate.m in Sources */,
+				0514526A2B8C99F800642A20 /* GameViewController.mm in Sources */,
+				051452642B8C99F800642A20 /* AppDelegate.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

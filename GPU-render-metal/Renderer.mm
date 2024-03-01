@@ -3,6 +3,7 @@
 #import "Renderer.hpp"
 // Include header shared between C code here, which executes Metal API commands, and .metal files
 #import "ShaderTypes.hpp"
+#include <vector>
 static const NSUInteger kMaxBuffersInFlight = 3;
 
 @implementation Renderer
@@ -106,6 +107,7 @@ static const NSUInteger kMaxBuffersInFlight = 3;
         pipelineStateDescriptor.label               = @"Offscreen Render Pipeline";
         pipelineStateDescriptor.rasterSampleCount   = 1;
         pipelineStateDescriptor.vertexFunction      = [defaultLibrary newFunctionWithName:@"textureVertexShader"];
+        
         pipelineStateDescriptor.fragmentFunction    = [defaultLibrary newFunctionWithName:tekstur2];
         pipelineStateDescriptor.colorAttachments[0].pixelFormat = _renderTargetTexture.pixelFormat;
         _RenderPipeline2 = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor error:&error];
@@ -157,19 +159,19 @@ static const NSUInteger kMaxBuffersInFlight = 3;
 //             NSLog(@"Failed to create the texture from %@", url.absoluteString);
 //         }
 }
-matrix_float4x4 matrix_perspective_right_hand(float fovyRadians,
-                                     float aspect, float nearZ,float farZ){
-    float ys = 1 / tanf(fovyRadians * 0.5);
-    float xs = ys / aspect;
-    float zs = farZ / (nearZ - farZ);
-    matrix_float4x4 table_perspective;
-    table_perspective.columns[0].x = xs;
-    table_perspective.columns[1].y = ys;
-    table_perspective.columns[2].z = zs;
-    table_perspective.columns[2].w = nearZ * zs;
-    table_perspective.columns[3].z = -1;
-    return table_perspective;
-}
+//matrix_float4x4 matrix_perspective_right_hand(float fovyRadians,
+//                                     float aspect, float nearZ,float farZ){
+//    float ys = 1 / tanf(fovyRadians * 0.5);
+//    float xs = ys / aspect;
+//    float zs = farZ / (nearZ - farZ);
+//    matrix_float4x4 table_perspective;
+//    table_perspective.columns[0].x = xs;
+//    table_perspective.columns[1].y = ys;
+//    table_perspective.columns[2].z = zs;
+//    table_perspective.columns[2].w = nearZ * zs;
+//    table_perspective.columns[3].z = -1;
+//    return table_perspective;
+//}
 
 - (void)drawInMTKView:(nonnull MTKView *)view
 {
@@ -201,27 +203,75 @@ matrix_float4x4 matrix_perspective_right_hand(float fovyRadians,
                                   atIndex:AAPLVertexInputIndexVertices];
             [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
                               vertexStart:0
-                              vertexCount:12];
+                              vertexCount:3];
             [renderEncoder endEncoding];
         }
+        std::vector<float3>cube;
+        cube.resize(8);
+        cube[0]={0.5,-0.5,1.0};//tyl prawy dolny
+        cube[1]={-0.5,-0.5,1.0};//tyl lewy dolny
+        cube[2]={-0.5,0.5,1.0};//tyl lewy gorny
+        cube[3]={0.5,0.5,1.0};//tyl prawy górny
+        
+        cube[4]={0.5,-0.5,0.999};//przod prawy dolny
+        cube[5]={-0.5,-0.5,0.999};//przod lewy dolny
+        cube[6]={-0.5,0.5,0.999};//przod lewy gorny
+        cube[7]={0.5,0.5,0.999};//przod prawy górny
+        
         static const AAPLTextureVertex3D quadVertices[] =
         {
-            // Positions     , Texture coordinates
-            { {  0.5,  -0.5 ,1.0 ,1},  { 1.0, 1.0 } },//trojkat arena 2
-            { { -0.5,  -0.5 ,1.0 ,1},  { 1.0, 1.0 } },
-            { { -0.5,   0.5 ,1.0 ,1},  { 1.0, 1.0 } },
-            //   x  ,     y  ,z   ,w
-            { {  0.5,  -0.5 ,1.0 ,1},  { 1.0, 1.0 } },//trojkat arena 1
-            { { 0.5,   0.5 ,1.0 ,1},  { 1.0, 1.0 } },
-            { {  -0.5,  0.5 ,1.0 ,1},  { 1.0, 0.0 } },
             
-            { {  0.5,  -0.5 ,0.0 ,1},  { 1.0, 1.0 } },//trojkat arena 2
-            { { -0.5,  -0.5 ,0.0 ,1},  { 1.0, 1.0 } },
-            { { -0.5,   0.5 ,0.0 ,1},  { 1.0, 1.0 } },
-            //   x  ,     y  ,0.0 ,w
-            { {  0.5,  -0.5 ,0.0 ,1},  { 1.0, 1.0 } },//trojkat arena 1
-            { { 0.5,   0.5 , 0.0 ,1},  { 1.0, 1.0 } },
-            { {  -0.5,  0.5 ,0.0 ,1},  { 1.0, 0.0 } },
+            // Positions     , Texture coordinates
+            //tyl
+            { {  cube[0].x, cube[0].y ,cube[0].z ,1.0},  { 1.0, 1.0 }},
+            { { cube[1].x, cube[1].y ,cube[1].z ,1.0},  { 1.0, 1.0 } },
+            { { cube[2].x, cube[2].y ,cube[2].z ,1.0},  { 1.0, 1.0 } },
+            
+            { { cube[0].x, cube[0].y ,cube[0].z,1},  { 1.0, 1.0 } },
+            { { cube[2].x, cube[2].y ,cube[2].z ,1},  { 1.0, 1.0 } },
+            { {  cube[3].x, cube[3].y ,cube[3].z ,1},  { 1.0, 0.0 } },
+            //przod
+            { {  cube[4].x, cube[4].y ,cube[4].z ,1.0},  { 1.0, 1.0 }},
+            { { cube[5].x, cube[5].y ,cube[5].z ,1.0},  { 1.0, 1.0 } },
+            { { cube[6].x, cube[6].y ,cube[6].z ,1.0},  { 1.0, 1.0 } },
+            
+            { { cube[4].x, cube[4].y ,cube[4].z,1},  { 1.0, 1.0 } },
+            { { cube[6].x, cube[6].y ,cube[6].z ,1},  { 1.0, 1.0 } },
+            { {  cube[7].x, cube[7].y ,cube[7].z ,1},  { 1.0, 0.0 } },
+            //górna
+            { {  cube[2].x, cube[2].y ,cube[2].z ,1.0},  { 1.0, 1.0 }},
+            { { cube[3].x, cube[3].y ,cube[3].z ,1.0},  { 1.0, 1.0 } },
+            { { cube[6].x, cube[6].y ,cube[6].z ,1.0},  { 1.0, 1.0 } },
+          
+            { {  cube[3].x, cube[3].y ,cube[3].z ,1},  { 1.0, 0.0 } },
+            { { cube[6].x, cube[6].y ,cube[6].z,1},  { 1.0, 1.0 } },
+            { { cube[7].x, cube[7].y ,cube[7].z ,1},  { 1.0, 1.0 } },
+            //dol
+            
+            { { cube[0].x, cube[0].y ,cube[0].z ,1.0},  { 1.0, 1.0 } },
+            { {  cube[1].x, cube[1].y ,cube[1].z ,1.0},  { 1.0, 1.0 }},
+            { { cube[4].x, cube[4].y ,cube[4].z ,1.0},  { 1.0, 1.0 } },
+            
+            { {  cube[1].x, cube[1].y ,cube[1].z ,1},  { 1.0, 0.0 } },
+            { { cube[4].x, cube[4].y ,cube[4].z ,1},  { 1.0, 1.0 } },
+            { { cube[5].x, cube[5].y ,cube[5].z,1},  { 1.0, 1.0 } },
+           //lewa scianka
+            { { cube[1].x, cube[1].y ,cube[1].z ,1.0},  { 1.0, 1.0 } },
+           { {  cube[2].x, cube[2].y ,cube[2].z ,1.0},  { 1.0, 1.0 }},
+             { { cube[5].x, cube[5].y ,cube[5].z ,1.0},  { 1.0, 1.0 } },
+            
+            { { cube[2].x, cube[2].y ,cube[2].z,1},  { 1.0, 1.0 } },
+            { { cube[6].x, cube[6].y ,cube[6].z ,1},  { 1.0, 1.0 } },
+            { {  cube[5].x, cube[5].y ,cube[5].z ,1},  { 1.0, 0.0 } },
+            //prawa scianka
+            { {  cube[3].x, cube[3].y ,cube[3].z ,1.0},  { 1.0, 1.0 }},
+            { { cube[4].x, cube[4].y ,cube[4].z ,1.0},  { 1.0, 1.0 } },
+            { { cube[7].x, cube[7].y ,cube[7].z ,1.0},  { 1.0, 1.0 } },
+           
+            { { cube[0].x, cube[0].y ,cube[0].z ,1},  { 1.0, 1.0 } },	
+            { { cube[3].x, cube[3].y ,cube[3].z,1},  { 1.0, 1.0 } },
+            { {  cube[4].x, cube[4].y ,cube[4].z ,1},  { 1.0, 0.0 } },
+            
         };
         id<MTLRenderCommandEncoder> renderEncoder =
         [commandBuffer renderCommandEncoderWithDescriptor:_PassDescriptor_second];
@@ -238,7 +288,7 @@ matrix_float4x4 matrix_perspective_right_hand(float fovyRadians,
                               atIndex:AAPLVertexInputIndexAspectRatio];
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
                           vertexStart:0
-                          vertexCount:12];
+                          vertexCount:36];
         [renderEncoder endEncoding];
         
         MTLRenderPassDescriptor *drawableRenderPassDescriptor = view.currentRenderPassDescriptor;
